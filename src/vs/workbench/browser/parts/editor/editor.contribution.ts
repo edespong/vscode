@@ -53,6 +53,7 @@ import { Extensions as WorkbenchExtensions, IWorkbenchContributionsRegistry } fr
 import { LifecyclePhase } from 'vs/platform/lifecycle/common/lifecycle';
 import { withNullAsUndefined } from 'vs/base/common/types';
 import { registerAndGetAmdImageURL } from 'vs/base/common/amd';
+import { ISearchTokenRegistry, SearchExtensions } from 'vs/workbench/services/search/common/searchTokenRegistry';
 
 // Register String Editor
 Registry.as<IEditorRegistry>(EditorExtensions.Editors).registerEditor(
@@ -933,4 +934,10 @@ MenuRegistry.appendMenuItem(MenuId.MenubarGoMenu, {
 	title: nls.localize({ key: 'miSwitchGroup', comment: ['&& denotes a mnemonic'] }, "Switch &&Group"),
 	submenu: MenuId.MenubarSwitchGroupMenu,
 	order: 2
+});
+
+const searchTokenRegistry = Registry.as<ISearchTokenRegistry>(SearchExtensions.SearchTokens);
+searchTokenRegistry.registerToken({
+	token: '@editor',
+	command: 'editor.expandSearchToken'
 });

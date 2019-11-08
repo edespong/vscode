@@ -10,12 +10,15 @@ import { commands, Disposable, LineChange, MessageOptions, OutputChannel, Positi
 import TelemetryReporter from 'vscode-extension-telemetry';
 import * as nls from 'vscode-nls';
 import { Branch, GitErrorCodes, Ref, RefType, Status } from './api/git';
+import { memoize } from './decorators';
 import { CommitOptions, ForcePushMode, Git, Stash } from './git';
 import { Model } from './model';
 import { Repository, Resource, ResourceGroupType } from './repository';
 import { applyLineChanges, getModifiedRange, intersectDiffWithRange, invertLineChange, toLineRanges } from './staging';
 import { fromGitUri, toGitUri } from './uri';
 import { grep, isDescendant, pathEquals } from './util';
+
+type ResourceFilter = (r: Resource) => boolean;
 
 const localize = nls.loadMessageBundle();
 
@@ -2328,6 +2331,68 @@ export class CommandCenter {
 		const picks = stashes.map(stash => ({ label: `#${stash.index}:  ${stash.description}`, description: '', details: '', stash }));
 		const result = await window.showQuickPick(picks, { placeHolder });
 		return result && result.stash;
+	}
+
+	@command('git.expandSearchToken', {})
+	async expandSearchToken(...parameters: string[]): Promise<string[] | undefined> {
+		if (!parameters.length) {
+			throw new Error('@git - Need at least one parameter to expand the token');
+		}
+
+		const resourceFilters = this.createResourceFilters();
+
+		const availableParams = Array.from(resourceFilters.keys());
+		const unknownParams = parameters.filter(x => availableParams.indexOf(x) === -1);
+		if (unknownParams.length) {
+			throw new Error(`@git - Unknown parameter(s): ${unknownParams.join(', ')}`);
+		}
+
+		const composeFilter = (f1: ResourceFilter, f2: ResourceFilter): ResourceFilter => {
+			return resource => f1(resource) || f2(resource);
+		};
+
+		const nullFilter: ResourceFilter = (_: Resource) => false;
+		const filter = availableParams
+			.filter(x => parameters.indexOf(x) !== -1)
+			.map(key => resourceFilters.get(key) || nullFilter)
+			.reduce(composeFilter);
+
+		const allResources = (<Resource[]>[])
+			.concat(...this.model.repositories.map(repo => repo.workingTreeGroup.resourceStates))
+			.concat(...this.model.repositories.map(repo => repo.indexGroup.resourceStates))
+			.concat(...this.model.repositories.map(repo => repo.mergeGroup.resourceStates));
+
+		const result = allResources.filter(filter).map(resource => resource.resourceUri.fsPath);
+		return Promise.resolve(result);
+	}
+
+	@memoize
+	private createResourceFilters(): Map<string, ResourceFilter> {
+		const getStatus = (type: Status): 'Modified' | 'Deleted' | 'Untracked' => {
+			switch (type) {
+				case Status.INDEX_MODIFIED:
+				case Status.MODIFIED:
+					return 'Modified';
+				case Status.INDEX_DELETED:
+				case Status.DELETED:
+				case Status.DELETED_BY_THEM:
+				case Status.DELETED_BY_US:
+					return 'Deleted';
+				case Status.UNTRACKED:
+					return 'Untracked';
+				default:
+					throw new Error('Unsupported git status: ' + type);
+			}
+		};
+
+		const resourceFilters = new Map<string, ResourceFilter>();
+		resourceFilters.set('changes', (r: Resource) => r.resourceGroupType === ResourceGroupType.WorkingTree);
+		resourceFilters.set('staged', (r: Resource) => r.resourceGroupType === ResourceGroupType.Index);
+		resourceFilters.set('merge', (r: Resource) => r.resourceGroupType === ResourceGroupType.Merge);
+		resourceFilters.set('modified', (r: Resource) => getStatus(r.type) === 'Modified');
+		resourceFilters.set('untracked', (r: Resource) => getStatus(r.type) === 'Untracked');
+		resourceFilters.set('deleted', (r: Resource) => getStatus(r.type) === 'Deleted');
+		return resourceFilters;
 	}
 
 	private createCommand(id: string, key: string, method: Function, options: CommandOptions): (...args: any[]) => any {

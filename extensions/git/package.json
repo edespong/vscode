@@ -1759,7 +1759,13 @@
           72
         ]
       }
-    }
+    },
+    "searchTokens": [
+      {
+        "token": "@git",
+        "command": "git.expandSearchToken"
+      }
+    ]
   },
   "dependencies": {
     "byline": "^5.0.0",

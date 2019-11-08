@@ -5,6 +5,7 @@
 
 import * as arrays from 'vs/base/common/arrays';
 import * as strings from 'vs/base/common/strings';
+import { URI as uri } from 'vs/base/common/uri';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { ICommandService } from 'vs/platform/commands/common/commands';
 import { Registry } from 'vs/platform/registry/common/platform';
@@ -15,6 +16,7 @@ type ExpandableTokens = { [token: string]: string[] };
 
 export class QueryExpansion {
 	constructor(
+		private readonly isTest: boolean, // WIP(remove): Remove once issue 48958 is resolved
 		@IConfigurationService private readonly configurationService: IConfigurationService,
 		@ICommandService private readonly commandService: ICommandService) {
 	}
@@ -23,7 +25,8 @@ export class QueryExpansion {
 	 * Takes search pattern segments, i.e. parts from the include pattern, and expands queries like @open into
 	 * their searchable segments.
 	 */
-	expandQuerySegments(segments: string[]): Promise<string[]> {
+	// WIP(remove): Remove folderResources once issue 48958 is resolved
+	expandQuerySegments(segments: string[], folderResources: uri[] = []): Promise<string[]> {
 		if (!segments.some(segment => strings.startsWith(segment, '@'))) {
 			return Promise.resolve(segments);
 		}
@@ -38,9 +41,31 @@ export class QueryExpansion {
 				return expander.expand(query).then(expansion => new Expansion(query, expansion));
 			});
 
+		// WIP(remove): Remove once issue 48958 is resolved
+		const folderPaths = folderResources.filter(f => f.scheme === 'file').map(f => f.fsPath);
+		const expandedHack = this.isTest ? Promise.all(expanded) : Promise.all(expanded)
+			.then(expanded => {
+				// Hack to test the functionality because fully qualified paths do not work.
+				// Make fully qualified paths to relative search pattern.
+				// Turns c:\Code\vscode\extensions\git\src\api\extension.ts to  **/extensions/git/src/api/extension.t*
+				return expanded
+					.filter(todo => todo.expansion !== undefined)
+					.map(todo => {
+						const [query, newSegments] = [todo.query, todo.expansion!];
+						newSegments.forEach((segment, i, arr) => {
+							let path = segment;
+							folderPaths.forEach(f => path = path.replace(f, '**'));
+							path = path.replace(/\\/g, '/');
+							path = path.substr(0, path.length - 1) + '*';
+							arr[i] = path;
+						});
+						return new Expansion(query, newSegments);
+					});
+			});
+
 		const result = segments.slice();
 
-		return Promise.all(expanded)
+		return expandedHack
 			.then(expansions => {
 				expansions.forEach(e => {
 					const queryIndex = segments.indexOf(e.query);

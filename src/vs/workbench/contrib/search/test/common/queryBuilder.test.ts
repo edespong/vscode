@@ -487,7 +487,7 @@ suite('QueryBuilder', () => {
 		test('simple includes', async () => {
 			async function testSimpleIncludes(includePattern: string, expectedPatterns: string[]): Promise<void> {
 				assert.deepEqual(
-					await queryBuilder.parseSearchPaths(includePattern),
+					await queryBuilder.parseSearchPaths(includePattern, []),
 					{
 						pattern: patternsToIExpression(...expectedPatterns)
 					},
@@ -508,7 +508,7 @@ suite('QueryBuilder', () => {
 
 		async function testIncludes(includePattern: string, expectedResult: ISearchPathsInfo): Promise<void> {
 			assertEqualSearchPathResults(
-				await queryBuilder.parseSearchPaths(includePattern),
+				await queryBuilder.parseSearchPaths(includePattern, []),
 				expectedResult,
 				includePattern);
 		}

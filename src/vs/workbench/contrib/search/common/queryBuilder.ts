@@ -87,7 +87,7 @@ export class QueryBuilder {
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
 		@IEnvironmentService private readonly environmentService: IEnvironmentService,
 		@IInstantiationService instantiationService: IInstantiationService) {
-		this.queryExpansion = instantiationService.createInstance(QueryExpansion);
+		this.queryExpansion = instantiationService.createInstance(QueryExpansion, false);
 	}
 
 	text(contentPattern: IPatternInfo, folderResources?: uri[], options: ITextQueryBuilderOptions = {}): Promise<ITextQuery> {
@@ -157,9 +157,9 @@ export class QueryBuilder {
 		let includeSearchPathsInfoPromise: Promise<ISearchPathsInfo> = Promise.resolve({});
 		if (options.includePattern) {
 			if (options.expandPatterns) {
-				includeSearchPathsInfoPromise = this.parseSearchPaths(options.includePattern);
+				includeSearchPathsInfoPromise = this.parseSearchPaths(options.includePattern, folderResources);
 			} else {
-				const patternExpression = this.queryExpansion.expandQuerySegments(splitGlobPattern(options.includePattern))
+				const patternExpression = this.queryExpansion.expandQuerySegments(splitGlobPattern(options.includePattern), folderResources)
 					.then(patterns => patternListToIExpression(...patterns));
 				includeSearchPathsInfoPromise = patternExpression.then(e => { return { pattern: e }; });
 
@@ -169,9 +169,9 @@ export class QueryBuilder {
 		let excludeSearchPathsInfoPromise: Promise<ISearchPathsInfo> = Promise.resolve({});
 		if (options.excludePattern) {
 			if (options.expandPatterns) {
-				excludeSearchPathsInfoPromise = this.parseSearchPaths(options.excludePattern);
+				excludeSearchPathsInfoPromise = this.parseSearchPaths(options.excludePattern, folderResources);
 			} else {
-				const patternExpression = this.queryExpansion.expandQuerySegments(splitGlobPattern(options.excludePattern))
+				const patternExpression = this.queryExpansion.expandQuerySegments(splitGlobPattern(options.excludePattern), folderResources)
 					.then(patterns => patternListToIExpression(...patterns));
 				excludeSearchPathsInfoPromise = patternExpression.then(e => { return { pattern: e }; });
 			}
@@ -268,8 +268,8 @@ export class QueryBuilder {
 	 *
 	 * Public for test.
 	 */
-	parseSearchPaths(pattern: string): Promise<ISearchPathsInfo> {
-		return this.queryExpansion.expandQuerySegments(splitGlobPattern(pattern))
+	parseSearchPaths(pattern: string, folderResources: uri[]): Promise<ISearchPathsInfo> {
+		return this.queryExpansion.expandQuerySegments(splitGlobPattern(pattern), folderResources)
 			.then(patterns => this.parseSearchPatterns(patterns));
 	}
 

@@ -22,6 +22,7 @@ import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 import { IConfigurationService, ConfigurationTarget } from 'vs/platform/configuration/common/configuration';
 import { CommandsRegistry, ICommandHandler } from 'vs/platform/commands/common/commands';
 import { MenuRegistry, MenuId } from 'vs/platform/actions/common/actions';
+import { expandSearchTokenCommand } from 'vs/workbench/browser/parts/editor/searchTokenExpansion';
 
 export const CLOSE_SAVED_EDITORS_COMMAND_ID = 'workbench.action.closeUnmodifiedEditors';
 export const CLOSE_EDITORS_IN_GROUP_COMMAND_ID = 'workbench.action.closeEditorsInGroup';
@@ -695,6 +696,15 @@ function registerCloseEditorCommands() {
 	});
 }
 
+/**
+ * Support for expanding search patterns related to files in the editor, e.g. open or unsaved files.
+ *
+ * Example include pattern: @editor(open)
+ */
+function registerExpandSearchTokenCommand() {
+	CommandsRegistry.registerCommand('editor.expandSearchToken', expandSearchTokenCommand);
+}
+
 function getCommandsContext(resourceOrContext: URI | IEditorCommandsContext, context?: IEditorCommandsContext): IEditorCommandsContext | undefined {
 	if (URI.isUri(resourceOrContext)) {
 		return context;
@@ -791,4 +801,5 @@ export function setup(): void {
 	registerCloseEditorCommands();
 	registerFocusEditorGroupAtIndexCommands();
 	registerSplitEditorCommands();
+	registerExpandSearchTokenCommand();
 }

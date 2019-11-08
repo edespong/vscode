@@ -777,10 +777,11 @@ configurationRegistry.registerConfiguration({
 		},
 		'search.expandableTokens': {
 			type: 'object',
-			markdownDescription: nls.localize('expandableTokens', "Configure tokens for quick search. Read more about expanding tokens [here](https://code.visualstudio.com/docs/editor/codebasics#_advanced-search-options)."),
+			markdownDescription: nls.localize('expandableTokens', "Configure tokens for quick search. Read more about expanding tokens [here](https://code.visualstudio.com/docs/editor/codebasics#_advanced-search-options). TODO: Docs need to be updated."),
 			default: {
 				'@config': ['**/*.config', 'src/**/*.cscfg'],
-				'@deploy': ['**/deploy', '@config']
+				'@deploy': ['**/deploy', '@config'],
+				'@modified': ['@git(modified)']
 			},
 			scope: ConfigurationScope.RESOURCE
 		},
