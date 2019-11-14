@@ -222,8 +222,10 @@ export class CodeLensContribution implements editorCommon.IEditorContribution {
 	}
 
 	private _disposeAllLenses(decChangeAccessor: IModelDecorationsChangeAccessor | undefined, viewZoneChangeAccessor: editorBrowser.IViewZoneChangeAccessor | undefined): void {
-		let helper = new CodeLensHelper();
-		this._lenses.forEach((lens) => lens.dispose(helper, viewZoneChangeAccessor));
+		const helper = new CodeLensHelper();
+		for (const lens of this._lenses) {
+			lens.dispose(helper, viewZoneChangeAccessor);
+		}
 		if (decChangeAccessor) {
 			helper.commit(decChangeAccessor);
 		}
@@ -326,7 +328,7 @@ export class CodeLensContribution implements editorCommon.IEditorContribution {
 			return;
 		}
 
-		this._currentResolveCodeLensSymbolsPromise = createCancelablePromise(token => {
+		const resolvePromise = createCancelablePromise(token => {
 
 			const promises = toResolve.map((request, i) => {
 
@@ -351,16 +353,21 @@ export class CodeLensContribution implements editorCommon.IEditorContribution {
 
 			return Promise.all(promises);
 		});
+		this._currentResolveCodeLensSymbolsPromise = resolvePromise;
 
 		this._currentResolveCodeLensSymbolsPromise.then(() => {
 			if (this._currentCodeLensModel) { // update the cached state with new resolved items
 				this._codeLensCache.put(model, this._currentCodeLensModel);
 			}
 			this._oldCodeLensModels.clear(); // dispose old models once we have updated the UI with the current model
-			this._currentResolveCodeLensSymbolsPromise = undefined;
+			if (resolvePromise === this._currentResolveCodeLensSymbolsPromise) {
+				this._currentResolveCodeLensSymbolsPromise = undefined;
+			}
 		}, err => {
 			onUnexpectedError(err); // can also be cancellation!
-			this._currentResolveCodeLensSymbolsPromise = undefined;
+			if (resolvePromise === this._currentResolveCodeLensSymbolsPromise) {
+				this._currentResolveCodeLensSymbolsPromise = undefined;
+			}
 		});
 	}
 }
