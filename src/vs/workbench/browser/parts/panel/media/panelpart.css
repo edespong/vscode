@@ -12,9 +12,8 @@
 	z-index: initial;
 }
 
-.monaco-workbench.windows .part.panel,
-.monaco-workbench.linux .part.panel,
-.monaco-workbench.web .part.panel {
+.monaco-workbench.windows.chromium .part.panel,
+.monaco-workbench.linux.chromium .part.panel {
 	/*
 	 * Explicitly put the part onto its own layer to help Chrome to
 	 * render the content with LCD-anti-aliasing. By partioning the
@@ -26,6 +25,7 @@
 	 */
 	transform: translate3d(0px, 0px, 0px);
 }
+
 
 .monaco-workbench .part.panel .title {
 	height: 35px;
@@ -65,7 +65,6 @@
 	margin-left: 0px;
 	margin-right: 0px;
 	color: inherit !important;
-
 }
 
 .monaco-workbench .part.panel > .title > .panel-switcher-container > .monaco-action-bar {
@@ -127,7 +126,7 @@
 	cursor: pointer;
 	min-width: 110px;
 	min-height: 18px;
-	padding: 2px 8px;
+	padding: 2px 23px 2px 8px;
 }
 
 /* Rotate icons when panel is on right */

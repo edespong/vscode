@@ -15,68 +15,29 @@
 	padding-left: 22px;
 }
 
+}
+
 .remote-help-content .monaco-list .monaco-list-row .monaco-tl-twistie {
 	width: 0px !important;
 }
 
-.vs .remote-help-tree-node-item-icon.getStarted {
-	background-image: url('help-getting-started-light.svg')
+.monaco-workbench .part > .title > .title-actions .switch-remote {
+	display: flex;
+	align-items: center;
+	font-size: 11px;
+	margin-right: 0.3em;
+	height: 20px;
+	flex-shrink: 1;
+	margin-top: 7px;
 }
 
-.vs .remote-help-tree-node-item-icon.documentation {
-	background-image: url('help-documentation-light.svg')
+.switch-remote > .monaco-select-box {
+	border: none;
+	display: block;
 }
 
-.vs .remote-help-tree-node-item-icon.feedback {
-	background-image: url('help-feedback-light.svg')
-}
-
-.vs .remote-help-tree-node-item-icon.issues {
-	background-image: url('help-review-issues-light.svg')
-}
-
-.vs .remote-help-tree-node-item-icon.issueReporter {
-	background-image: url('help-report-issue-light.svg')
-}
-
-.vs-dark .remote-help-tree-node-item-icon.getStarted {
-	background-image: url('help-getting-started-dark.svg')
-}
-
-.vs-dark .remote-help-tree-node-item-icon.documentation {
-	background-image: url('help-documentation-dark.svg')
-}
-
-.vs-dark .remote-help-tree-node-item-icon.feedback {
-	background-image: url('help-feedback-dark.svg')
-}
-
-.vs-dark .remote-help-tree-node-item-icon.issues {
-	background-image: url('help-review-issues-dark.svg')
-}
-
-.vs-dark .remote-help-tree-node-item-icon.issueReporter {
-	background-image: url('help-report-issue-dark.svg')
-}
-
-.hc-black .remote-help-tree-node-item-icon.getStarted {
-	background-image: url('help-getting-started-hc.svg')
-}
-
-.hc-black .remote-help-tree-node-item-icon.documentation {
-	background-image: url('help-documentation-hc.svg')
-}
-
-.hc-black .remote-help-tree-node-item-icon.feedback {
-	background-image: url('help-feedback-hc.svg')
-}
-
-.hc-black .remote-help-tree-node-item-icon.issues {
-	background-image: url('help-review-issues-hc.svg')
-}
-
-.hc-black .remote-help-tree-node-item-icon.issueReporter {
-	background-image: url('help-report-issue-hc.svg')
+.monaco-workbench .part > .title > .title-actions .switch-remote > .monaco-select-box {
+	padding-left: 3px;
 }
 
 .monaco-workbench .part > .title > .title-actions .switch-remote {

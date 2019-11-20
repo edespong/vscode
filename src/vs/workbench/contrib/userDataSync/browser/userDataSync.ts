@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { IWorkbenchContribution } from 'vs/workbench/common/contributions';
-import { IUserDataSyncService, SyncStatus, SyncSource, CONTEXT_SYNC_STATE } from 'vs/platform/userDataSync/common/userDataSync';
+import { IUserDataSyncService, SyncStatus, SyncSource, CONTEXT_SYNC_STATE, IUserDataSyncStore, registerConfiguration, getUserDataSyncStore } from 'vs/platform/userDataSync/common/userDataSync';
 import { localize } from 'vs/nls';
 import { Disposable, MutableDisposable, toDisposable, DisposableStore } from 'vs/base/common/lifecycle';
 import { CommandsRegistry } from 'vs/platform/commands/common/commands';
@@ -29,8 +29,11 @@ import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { FalseContext } from 'vs/platform/contextkey/common/contextkeys';
 import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
 import { IQuickInputService } from 'vs/platform/quickinput/common/quickInput';
+import { isWeb } from 'vs/base/common/platform';
+import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { UserDataAutoSync } from 'vs/platform/userDataSync/common/userDataSyncService';
 
-const CONTEXT_AUTH_TOKEN_STATE = new RawContextKey<string>('authTokenStatus', AuthTokenStatus.Inactive);
+const CONTEXT_AUTH_TOKEN_STATE = new RawContextKey<string>('authTokenStatus', AuthTokenStatus.Initializing);
 const SYNC_PUSH_LIGHT_ICON_URI = URI.parse(registerAndGetAmdImageURL(`vs/workbench/contrib/userDataSync/browser/media/check-light.svg`));
 const SYNC_PUSH_DARK_ICON_URI = URI.parse(registerAndGetAmdImageURL(`vs/workbench/contrib/userDataSync/browser/media/check-dark.svg`));
 
@@ -38,6 +41,7 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 
 	private static readonly ENABLEMENT_SETTING = 'configurationSync.enable';
 
+	private readonly userDataSyncStore: IUserDataSyncStore | undefined;
 	private readonly syncStatusContext: IContextKey<string>;
 	private readonly authTokenContext: IContextKey<string>;
 	private readonly badgeDisposable = this._register(new MutableDisposable());
@@ -58,22 +62,31 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 		@IDialogService private readonly dialogService: IDialogService,
 		@IStorageService private readonly storageService: IStorageService,
 		@IQuickInputService private readonly quickInputService: IQuickInputService,
+		@IInstantiationService instantiationService: IInstantiationService,
 	) {
 		super();
+		this.userDataSyncStore = getUserDataSyncStore(configurationService);
 		this.syncStatusContext = CONTEXT_SYNC_STATE.bindTo(contextKeyService);
 		this.authTokenContext = CONTEXT_AUTH_TOKEN_STATE.bindTo(contextKeyService);
 
-		this.onDidChangeAuthTokenStatus(this.authTokenService.status);
-		this.onDidChangeSyncStatus(this.userDataSyncService.status);
-		this._register(Event.debounce(authTokenService.onDidChangeStatus, () => undefined, 500)(() => this.onDidChangeAuthTokenStatus(this.authTokenService.status)));
-		this._register(Event.debounce(userDataSyncService.onDidChangeStatus, () => undefined, 500)(() => this.onDidChangeSyncStatus(this.userDataSyncService.status)));
-		this._register(Event.filter(this.configurationService.onDidChangeConfiguration, e => e.affectsConfiguration(UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING))(() => this.onDidChangeEnablement()));
-		this.registerActions();
+		if (this.userDataSyncStore) {
+			registerConfiguration();
+			this.onDidChangeAuthTokenStatus(this.authTokenService.status);
+			this.onDidChangeSyncStatus(this.userDataSyncService.status);
+			this._register(Event.debounce(authTokenService.onDidChangeStatus, () => undefined, 500)(() => this.onDidChangeAuthTokenStatus(this.authTokenService.status)));
+			this._register(Event.debounce(userDataSyncService.onDidChangeStatus, () => undefined, 500)(() => this.onDidChangeSyncStatus(this.userDataSyncService.status)));
+			this._register(Event.filter(this.configurationService.onDidChangeConfiguration, e => e.affectsConfiguration(UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING))(() => this.onDidChangeEnablement()));
+			this.registerActions();
+
+			if (isWeb) {
+				this._register(instantiationService.createInstance(UserDataAutoSync));
+			}
+		}
 	}
 
 	private onDidChangeAuthTokenStatus(status: AuthTokenStatus) {
 		this.authTokenContext.set(status);
-		if (status === AuthTokenStatus.Active) {
+		if (status === AuthTokenStatus.SignedIn) {
 			this.signInNotificationDisposable.clear();
 		}
 		this.updateBadge();
@@ -109,8 +122,8 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 		this.updateBadge();
 		const enabled = this.configurationService.getValue<boolean>(UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING);
 		if (enabled) {
-			if (this.authTokenService.status === AuthTokenStatus.Inactive) {
-				const handle = this.notificationService.prompt(Severity.Info, localize('ask to sign in', "Please sign in with your '{0}' account to sync configuration", "{ACCOUNT_NAME}"),
+			if (this.authTokenService.status === AuthTokenStatus.SignedOut) {
+				const handle = this.notificationService.prompt(Severity.Info, localize('ask to sign in', "Please sign in with your {0} account to sync configuration across all your machines", this.userDataSyncStore!.account),
 					[
 						{
 							label: localize('Sign in', "Sign in"),
@@ -131,7 +144,7 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 		let badge: IBadge | undefined = undefined;
 		let clazz: string | undefined;
 
-		if (this.userDataSyncService.status !== SyncStatus.Uninitialized && this.configurationService.getValue<boolean>(UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING) && this.authTokenService.status === AuthTokenStatus.Inactive) {
+		if (this.userDataSyncService.status !== SyncStatus.Uninitialized && this.configurationService.getValue<boolean>(UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING) && this.authTokenService.status === AuthTokenStatus.SignedOut) {
 			badge = new NumberBadge(1, () => localize('sign in', "Sync: Sign in..."));
 		} else if (this.authTokenService.status === AuthTokenStatus.SigningIn) {
 			badge = new ProgressBadge(() => localize('signing in', "Signin in..."));
@@ -149,11 +162,11 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 	}
 
 	private async turnOn(): Promise<void> {
-		if (this.authTokenService.status === AuthTokenStatus.Inactive) {
+		if (this.authTokenService.status === AuthTokenStatus.SignedOut) {
 			const result = await this.dialogService.confirm({
 				type: 'info',
-				message: localize('sign in to account', "Sign in to {0}", "{ACCOUNT_NAME}"),
-				detail: localize('ask to sign in', "Please sign in with your '{0}' account to sync configuration", "{ACCOUNT_NAME}"),
+				message: localize('sign in to account', "Sign in to {0}", this.userDataSyncStore!.name),
+				detail: localize('ask to sign in', "Please sign in with your {0} account to sync configuration across all your machines", this.userDataSyncStore!.account),
 				primaryButton: localize('Sign in', "Sign in")
 			});
 			if (!result.confirmed) {
@@ -288,7 +301,7 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 		MenuRegistry.appendMenuItem(MenuId.CommandPalette, startSyncMenuItem);
 
 		const signInCommandId = 'workbench.userData.actions.signin';
-		const signInWhenContext = ContextKeyExpr.and(CONTEXT_SYNC_STATE.notEqualsTo(SyncStatus.Uninitialized), ContextKeyExpr.has(`config.${UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING}`), CONTEXT_AUTH_TOKEN_STATE.isEqualTo(AuthTokenStatus.Inactive));
+		const signInWhenContext = ContextKeyExpr.and(CONTEXT_SYNC_STATE.notEqualsTo(SyncStatus.Uninitialized), ContextKeyExpr.has(`config.${UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING}`), CONTEXT_AUTH_TOKEN_STATE.isEqualTo(AuthTokenStatus.SignedOut));
 		CommandsRegistry.registerCommand(signInCommandId, () => this.signIn());
 		MenuRegistry.appendMenuItem(MenuId.GlobalActivity, {
 			group: '5_sync',
@@ -307,7 +320,7 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 		});
 
 		const signingInCommandId = 'workbench.userData.actions.signingin';
-		CommandsRegistry.registerCommand(signInCommandId, () => null);
+		CommandsRegistry.registerCommand(signingInCommandId, () => null);
 		MenuRegistry.appendMenuItem(MenuId.GlobalActivity, {
 			group: '5_sync',
 			command: {
@@ -318,18 +331,18 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 			when: CONTEXT_AUTH_TOKEN_STATE.isEqualTo(AuthTokenStatus.SigningIn)
 		});
 
-		const stopSycCommand = {
+		const stopSyncCommand = {
 			id: 'workbench.userData.actions.stopSync',
 			title: localize('stop sync', "Sync: Turn Off")
 		};
-		CommandsRegistry.registerCommand(stopSycCommand.id, () => this.turnOff());
+		CommandsRegistry.registerCommand(stopSyncCommand.id, () => this.turnOff());
 		MenuRegistry.appendMenuItem(MenuId.GlobalActivity, {
 			group: '5_sync',
-			command: stopSycCommand,
-			when: ContextKeyExpr.and(ContextKeyExpr.has(`config.${UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING}`), CONTEXT_AUTH_TOKEN_STATE.isEqualTo(AuthTokenStatus.Active), CONTEXT_SYNC_STATE.notEqualsTo(SyncStatus.Uninitialized), CONTEXT_SYNC_STATE.notEqualsTo(SyncStatus.HasConflicts))
+			command: stopSyncCommand,
+			when: ContextKeyExpr.and(ContextKeyExpr.has(`config.${UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING}`), CONTEXT_AUTH_TOKEN_STATE.isEqualTo(AuthTokenStatus.SignedIn), CONTEXT_SYNC_STATE.notEqualsTo(SyncStatus.Uninitialized), CONTEXT_SYNC_STATE.notEqualsTo(SyncStatus.HasConflicts))
 		});
 		MenuRegistry.appendMenuItem(MenuId.CommandPalette, {
-			command: stopSycCommand,
+			command: stopSyncCommand,
 			when: ContextKeyExpr.and(CONTEXT_SYNC_STATE.notEqualsTo(SyncStatus.Uninitialized), ContextKeyExpr.has(`config.${UserDataSyncWorkbenchContribution.ENABLEMENT_SETTING}`)),
 		});
 
@@ -381,7 +394,7 @@ export class UserDataSyncWorkbenchContribution extends Disposable implements IWo
 				id: 'workbench.userData.actions.signout',
 				title: localize('sign out', "Sign Out")
 			},
-			when: ContextKeyExpr.and(CONTEXT_AUTH_TOKEN_STATE.isEqualTo(AuthTokenStatus.Active)),
+			when: ContextKeyExpr.and(CONTEXT_AUTH_TOKEN_STATE.isEqualTo(AuthTokenStatus.SignedIn)),
 		};
 		CommandsRegistry.registerCommand(signOutMenuItem.command.id, () => this.signOut());
 		MenuRegistry.appendMenuItem(MenuId.CommandPalette, signOutMenuItem);

@@ -42,10 +42,8 @@ import { SwitchRemoteViewItem, SwitchRemoteAction } from 'vs/workbench/contrib/r
 import { Action, IActionViewItem, IAction } from 'vs/base/common/actions';
 import { isStringArray } from 'vs/base/common/types';
 import { IRemoteExplorerService, HelpInformation } from 'vs/workbench/services/remote/common/remoteExplorerService';
-
 class HelpModel {
 	items: IHelpItem[] | undefined;
-
 	constructor(
 		openerService: IOpenerService,
 		quickInputService: IQuickInputService,
@@ -54,11 +52,10 @@ class HelpModel {
 	) {
 		let helpItems: IHelpItem[] = [];
 		const getStarted = remoteExplorerService.helpInformation.filter(info => info.getStarted);
-
 		if (getStarted.length) {
 			helpItems.push(new HelpItem(
 				['getStarted'],
-				nls.localize('remote.help.getStarted', "Get Started"),
+				nls.localize('remote.help.getStarted', "$(star) Get Started"),
 				getStarted.map((info: HelpInformation) => ({
 					extensionDescription: info.extensionDescription,
 					url: info.getStarted!
@@ -67,13 +64,11 @@ class HelpModel {
 				quickInputService
 			));
 		}
-
 		const documentation = remoteExplorerService.helpInformation.filter(info => info.documentation);
-
 		if (documentation.length) {
 			helpItems.push(new HelpItem(
 				['documentation'],
-				nls.localize('remote.help.documentation', "Read Documentation"),
+				nls.localize('remote.help.documentation', "$(book) Read Documentation"),
 				documentation.map((info: HelpInformation) => ({
 					extensionDescription: info.extensionDescription,
 					url: info.documentation!
@@ -82,13 +77,11 @@ class HelpModel {
 				quickInputService
 			));
 		}
-
 		const feedback = remoteExplorerService.helpInformation.filter(info => info.feedback);
-
 		if (feedback.length) {
 			helpItems.push(new HelpItem(
 				['feedback'],
-				nls.localize('remote.help.feedback', "Provide Feedback"),
+				nls.localize('remote.help.feedback', "$(twitter) Provide Feedback"),
 				feedback.map((info: HelpInformation) => ({
 					extensionDescription: info.extensionDescription,
 					url: info.feedback!
@@ -97,13 +90,11 @@ class HelpModel {
 				quickInputService
 			));
 		}
-
 		const issues = remoteExplorerService.helpInformation.filter(info => info.issues);
-
 		if (issues.length) {
 			helpItems.push(new HelpItem(
 				['issues'],
-				nls.localize('remote.help.issues', "Review Issues"),
+				nls.localize('remote.help.issues', "$(issues) Review Issues"),
 				issues.map((info: HelpInformation) => ({
 					extensionDescription: info.extensionDescription,
 					url: info.issues!
@@ -112,95 +103,29 @@ class HelpModel {
 				quickInputService
 			));
 		}
-
 		if (helpItems.length) {
 			helpItems.push(new IssueReporterItem(
 				['issueReporter'],
-				nls.localize('remote.help.report', "Report Issue"),
+				nls.localize('remote.help.report', "$(comment) Report Issue"),
 				remoteExplorerService.helpInformation.map(info => info.extensionDescription),
 				quickInputService,
 				commandService
 			));
 		}
-
 		if (helpItems.length) {
 			this.items = helpItems;
-		}
-	}
-}
-
 interface IHelpItem extends IQuickPickItem {
-	label: string;
-	handleClick(): Promise<void>;
-}
-
-class HelpItem implements IHelpItem {
-	constructor(
 		public iconClasses: string[],
-		public label: string,
-		public values: { extensionDescription: IExtensionDescription; url: string }[],
-		private openerService: IOpenerService,
-		private quickInputService: IQuickInputService
-	) {
 		iconClasses.push('remote-help-tree-node-item-icon');
-	}
-
-	async handleClick() {
-		if (this.values.length > 1) {
-			let actions = this.values.map(value => {
-				return {
-					label: value.extensionDescription.displayName || value.extensionDescription.identifier.value,
-					description: value.url
-				};
-			});
-
-			const action = await this.quickInputService.pick(actions, { placeHolder: nls.localize('pickRemoteExtension', "Select url to open") });
-
-			if (action) {
-				await this.openerService.open(URI.parse(action.description));
-			}
-		} else {
-			await this.openerService.open(URI.parse(this.values[0].url));
-		}
-	}
-}
-
-class IssueReporterItem implements IHelpItem {
-	constructor(
 		public iconClasses: string[],
-		public label: string,
-		public extensionDescriptions: IExtensionDescription[],
-		private quickInputService: IQuickInputService,
-		private commandService: ICommandService
-	) {
 		iconClasses.push('remote-help-tree-node-item-icon');
-	}
-
-	async handleClick() {
-		if (this.extensionDescriptions.length > 1) {
-			let actions = this.extensionDescriptions.map(extension => {
-				return {
-					label: extension.displayName || extension.identifier.value,
-					identifier: extension.identifier
-				};
-			});
-
-			const action = await this.quickInputService.pick(actions, { placeHolder: nls.localize('pickRemoteExtensionToReportIssue', "Select an extension to report issue") });
-
-			if (action) {
-				await this.commandService.executeCommand('workbench.action.openIssueReporter', [action.identifier.value]);
-			}
-		} else {
-			await this.commandService.executeCommand('workbench.action.openIssueReporter', [this.extensionDescriptions[0].identifier.value]);
-		}
-	}
-}
 
 class HelpAction extends Action {
 	static readonly ID = 'remote.explorer.help';
 	static readonly LABEL = nls.localize('remote.explorer.help', "Help and Feedback");
 	private helpModel: HelpModel;
-
+		remoteExplorerService: IRemoteExplorerService,
+class HelpItem implements IHelpItem {
 	constructor(id: string,
 		label: string,
 		@IOpenerService private readonly openerService: IOpenerService,
@@ -210,10 +135,51 @@ class HelpAction extends Action {
 	) {
 		super(id, label, 'codicon codicon-question');
 		this.helpModel = new HelpModel(openerService, quickInputService, commandService, remoteExplorerService);
+					description: value.url
+				};
+			});
 	}
+	}
+	constructor(
+		public iconClasses: string[],
+		public label: string,
+		public extensionDescriptions: IExtensionDescription[],
+		private quickInputService: IQuickInputService,
+		private commandService: ICommandService
+	) {
+		iconClasses.push('remote-help-tree-node-item-icon');
+	}
+		if (this.extensionDescriptions.length > 1) {
+			let actions = this.extensionDescriptions.map(extension => {
+				return {
+					label: extension.displayName || extension.identifier.value,
+					identifier: extension.identifier
+				};
+			});
 
 	async run(event?: any): Promise<any> {
 		if (!this.helpModel.items) {
+			this.helpModel = new HelpModel(this.openerService, this.quickInputService, this.commandService, this.remoteExplorerService);
+		} else {
+			await this.commandService.executeCommand('workbench.action.openIssueReporter', [this.extensionDescriptions[0].identifier.value]);
+		}
+		if (this.helpModel.items) {
+			const selection = await this.quickInputService.pick(this.helpModel.items, { placeHolder: nls.localize('remote.explorer.helpPlaceholder', "Help and Feedback") });
+			if (selection) {
+				return selection.handleClick();
+			}
+		}
+		@IOpenerService private readonly openerService: IOpenerService,
+		@IQuickInputService private readonly quickInputService: IQuickInputService,
+		@ICommandService private readonly commandService: ICommandService,
+		@IRemoteExplorerService private readonly remoteExplorerService: IRemoteExplorerService
+	) {
+		super(id, label, 'codicon codicon-question');
+		this.helpModel = new HelpModel(openerService, quickInputService, commandService, remoteExplorerService);
+	}
+
+export class RemoteViewlet extends FilterViewContainerViewlet {
+	private actions: IAction[] | undefined;
 			this.helpModel = new HelpModel(this.openerService, this.quickInputService, this.commandService, this.remoteExplorerService);
 		}
 		if (this.helpModel.items) {
@@ -224,9 +190,6 @@ class HelpAction extends Action {
 		}
 	}
 }
-
-export class RemoteViewlet extends FilterViewContainerViewlet {
-	private actions: IAction[] | undefined;
 
 	constructor(
 		@IWorkbenchLayoutService layoutService: IWorkbenchLayoutService,
@@ -274,7 +237,7 @@ export class RemoteViewlet extends FilterViewContainerViewlet {
 	}
 }
 
-Registry.as<ViewletRegistry>(ViewletExtensions.Viewlets).registerViewlet(new ViewletDescriptor(
+Registry.as<ViewletRegistry>(ViewletExtensions.Viewlets).registerViewlet(ViewletDescriptor.create(
 	RemoteViewlet,
 	VIEWLET_ID,
 	nls.localize('remote.explorer', "Remote Explorer"),
@@ -294,7 +257,7 @@ class OpenRemoteViewletAction extends ShowViewletAction {
 
 // Register Action to Open Viewlet
 Registry.as<IWorkbenchActionRegistry>(WorkbenchActionExtensions.WorkbenchActions).registerWorkbenchAction(
-	new SyncActionDescriptor(OpenRemoteViewletAction, VIEWLET_ID, nls.localize('toggleRemoteViewlet', "Show Remote Explorer"), {
+	SyncActionDescriptor.create(OpenRemoteViewletAction, VIEWLET_ID, nls.localize('toggleRemoteViewlet', "Show Remote Explorer"), {
 		primary: 0
 	}),
 	'View: Show Remote Explorer',

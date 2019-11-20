@@ -608,6 +608,13 @@ interface IBaseStat {
 	ctime?: number;
 
 	/**
+	 *
+	 * The value may or may not be resolved as
+	 * it is optional.
+	 */
+	ctime?: number;
+
+	/**
 	 * A unique identifier thet represents the
 	 * current state of the file or directory.
 	 *
@@ -615,11 +622,6 @@ interface IBaseStat {
 	 * it is optional.
 	 */
 	etag?: string;
-
-	/**
-	 * The resource is readonly.
-	 */
-	isReadonly?: boolean;
 }
 
 export interface IBaseStatWithMetadata extends IBaseStat {

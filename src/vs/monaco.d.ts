@@ -4233,6 +4233,10 @@ declare namespace monaco.editor {
 		 * If the diff computation is not finished or the model is missing, will return null.
 		 */
 		getDiffLineInformationForModified(lineNumber: number): IDiffLineInformation | null;
+		/**
+		 * Update the editor's options after the editor has been created.
+		 */
+		updateOptions(newOptions: IDiffEditorOptions): void;
 	}
 
 	export class FontInfo extends BareFontInfo {
@@ -5558,6 +5562,32 @@ declare namespace monaco.languages {
 		onDidChange?: IEvent<this>;
 		provideCodeLenses(model: editor.ITextModel, token: CancellationToken): ProviderResult<CodeLensList>;
 		resolveCodeLens?(model: editor.ITextModel, codeLens: CodeLens, token: CancellationToken): ProviderResult<CodeLens>;
+	}
+
+	export interface SemanticColoringLegend {
+		readonly tokenTypes: string[];
+		readonly tokenModifiers: string[];
+	}
+
+	export interface SemanticColoringArea {
+		/**
+		 * The zero-based line value where this token block begins.
+		 */
+		readonly line: number;
+		/**
+		 * The actual token block encoded data.
+		 */
+		readonly data: Uint32Array;
+	}
+
+	export interface SemanticColoring {
+		readonly areas: SemanticColoringArea[];
+		dispose(): void;
+	}
+
+	export interface SemanticColoringProvider {
+		getLegend(): SemanticColoringLegend;
+		provideSemanticColoring(model: editor.ITextModel, token: CancellationToken): ProviderResult<SemanticColoring>;
 	}
 
 	export interface ILanguageExtensionPoint {
